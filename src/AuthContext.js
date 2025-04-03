@@ -20,13 +20,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log(user); // This will log the actual user when auth state changes
       setCurrentUser(user);
       setLoading(false);
     });
-
+  
     return unsubscribe;
   }, []);
-
   const value = useMemo(
     () => ({
       currentUser,

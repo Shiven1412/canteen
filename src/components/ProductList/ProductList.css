@@ -1,22 +1,101 @@
+/* Product Card Styling */
+.product-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow */
+  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for hover effects */
+  background: linear-gradient(145deg, #ffffff, #e6e6e6); /* 3D gradient effect */
+}
+
+.product-card:hover {
+  transform: translateY(-10px) scale(1.05); /* Lift the card slightly */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Enhance shadow on hover */
+}
+
+/* Product Image Styling */
 .product-image {
   height: 200px;
   object-fit: cover;
+  border-radius: 10px 10px 0 0; /* Rounded corners for the top */
+  transition: transform 0.3s ease; /* Smooth zoom effect */
 }
 
+.product-card:hover .product-image {
+  transform: scale(1.1); /* Zoom in on hover */
+}
+
+/* Product Details */
+.product-details {
+  padding: 15px;
+  text-align: center;
+  background: #f9f9f9;
+  border-radius: 0 0 10px 10px; /* Rounded corners for the bottom */
+}
+
+.product-details h5 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.product-details p {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Button Styling */
+.product-details .btn {
+  margin-top: 10px;
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #fff;
+  background: #007bff;
+  border: none;
+  border-radius: 5px;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.product-details .btn:hover {
+  background: #0056b3;
+  transform: scale(1.1); /* Slightly enlarge the button on hover */
+}
+
+/* Add Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-card {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Responsive Grid */
 @media (max-width: 767px) {
   .row-cols-md-3 {
     --bs-rows: 4;
-    --bs-columns: 3;
+    --bs-columns: 2; /* Adjust columns for smaller screens */
   }
 }
 
 @media (min-width: 768px) {
   .row-cols-md-3 {
     --bs-rows: 3;
-    --bs-columns: 4;
+    --bs-columns: 4; /* Adjust columns for larger screens */
   }
 }
 
+/* Pointer Cursor for Clickable Items */
 .pr {
   cursor: pointer;
 }

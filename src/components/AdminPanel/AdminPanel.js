@@ -24,6 +24,7 @@ const AdminPanel = () => {
   const [initialPrices, setInitialPrices] = useState({});
   const [products, setProducts] = useState({});
   const [rawSalesData, setRawSalesData] = useState(null);
+  const [orders, setOrders] = useState([]);
 
   // Memoize the date calculations
   const dateRanges = useMemo(() => {
@@ -160,6 +161,44 @@ const AdminPanel = () => {
     }
   }, [rawSalesData, products, processData]);
 
+  useEffect(() => {
+    const ordersRef = ref(database, "sales");
+
+    const unsubscribe = onValue(ordersRef, (snapshot) => {
+      const data = snapshot.val();
+      const allOrders = [];
+
+      for (const date in data) {
+        for (const orderId in data[date]) {
+          allOrders.push({ ...data[date][orderId], id: orderId });
+        }
+      }
+
+      // Sort orders by timestamp
+      const sortedOrders = sortOrdersByTime(allOrders);
+      setOrders(sortedOrders);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit", // Include seconds
+      hour12: false,
+    });
+  };
+
+  const sortOrdersByTime = (orders) => {
+    return [...orders].sort((a, b) => b.timestamp - a.timestamp); // Sort in descending order
+  };
+
   const renderAdminContent = () => (
     <>
       <Row>
@@ -210,18 +249,47 @@ const AdminPanel = () => {
     <>
       <Row>
         <Col xs={12}>
-          <OrderHistory isAdmin={false} />
+          <OrderHistory isAdmin={true} />
         </Col>
       </Row>
     </>
   );
 
   return (
+      <>
+      
     <Container fluid>
       <h1 className="my-4 fw-bold">{isAdmin ? "Admin Panel" : "User Dashboard"}</h1>
       {isAdmin ? renderAdminContent() : renderUserContent()}
+      <div className="container mt-5">
+        <h1 className="mb-4">Admin Panel - Order History</h1>
+        <table className="table table-bordered">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Customer</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id}>
+                <td>{order.id}</td>
+                <td>{new Date(order.timestamp).toLocaleDateString()}</td>
+                <td>{formatDate(order.timestamp)}</td>
+                <td>{order.userEmail}</td>
+                <td>₹{(order.total || 0).toFixed(2)}</td> {/* Fallback for total */}
+                <td>{order.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Container>
-  );
+  </>);
 };
 
 export default AdminPanel;

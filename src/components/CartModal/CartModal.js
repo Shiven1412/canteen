@@ -13,6 +13,7 @@ const CartModal = ({
   clearCart,
   calculateTotal,
   checkout,
+
 }) => {
   return (
     <Modal show={show} onHide={handleClose} centered className="rounded-4">
@@ -82,7 +83,18 @@ const CartModal = ({
         >
           Clear Cart
         </Button>
-        <Button variant="success" className="rounded-3" onClick={checkout}>
+        <Button
+          variant="outline-primary"
+          className="rounded-3"
+          onClick={() => checkout("counter")} // Pass "counter" as the payment method
+        >
+          Pay at Counter
+        </Button>
+        <Button
+          variant="success"
+          className="rounded-3"
+          onClick={() => checkout("online")} // Pass "online" as the payment method
+        >
           Checkout
         </Button>
       </Modal.Footer>

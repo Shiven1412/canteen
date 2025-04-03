@@ -10,7 +10,7 @@ const Footer = () => {
           &copy; {currentYear} Canteen Management System. All rights reserved.
         </p>
         <p className="mb-0">
-          Developed with <i className="fas fa-heart text-danger"></i> by <a className="text-decoration-none" href="https:/github.com/SauRavRwT/">Saurav Rawat.</a>
+          Developed with <i className="fas fa-heart text-danger"></i> by <a className="text-decoration-none" href="">Group 29.</a>
         </p>
       </div>
     </footer>

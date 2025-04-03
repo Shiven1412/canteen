@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, Table, Form } from "react-bootstrap";
+import { Card, Table, Form, Dropdown } from "react-bootstrap";
 import { database } from "../../firebase";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -32,6 +32,11 @@ const OrderHistory = () => {
       return Object.entries(salesData)
         .map(([date, dailySales]) => {
           return Object.entries(dailySales).map(([orderId, sale]) => {
+            const calculatedTotal = sale.items?.reduce(
+              (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+              0
+            );
+
             return {
               id: orderId,
               date: new Date(date),
@@ -42,14 +47,9 @@ const OrderHistory = () => {
                   name: products[item.id]?.name || `Product ${item.id}`,
                   price: item.price || products[item.id]?.price || 0,
                 })) || [],
-              total:
-                sale.total ||
-                sale.items?.reduce(
-                  (sum, item) => sum + item.price * item.quantity,
-                  0
-                ) ||
-                0,
-              status: sale.status || "Completed",
+              total: sale.total || calculatedTotal || 0, // Use provided total or calculate it
+              status: sale.status || "Pending",
+              paymentStatus: sale.paymentStatus || "Paid",
             };
           });
         })
@@ -120,6 +120,20 @@ const OrderHistory = () => {
     });
   };
 
+  // Update order status in Firebase
+  const updateOrderStatus = (orderDate, orderId, newStatus) => {
+    const formattedDate = orderDate.toISOString().split("T")[0]; // Format the order date
+    const orderRef = ref(database, `sales/${formattedDate}/${orderId}`);
+    update(orderRef, { status: newStatus })
+      .then(() => {
+        alert(`Order ${orderId} status updated to ${newStatus}`);
+      })
+      .catch((error) => {
+        console.error("Error updating order status:", error);
+        alert("Failed to update order status. Please try again.");
+      });
+  };
+
   return (
     <Card className="mt-4">
       <Card.Header>
@@ -158,18 +172,23 @@ const OrderHistory = () => {
                     (sortConfig.direction === "asc" ? "↑" : "↓")}
                 </th>
                 <th>Status</th>
+                <th>Payment Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center">
+                  <td colSpan={8} className="text-center">
                     No orders found
                   </td>
                 </tr>
               ) : (
                 filterOrders(sortOrders(orders)).map((order) => (
-                  <tr key={order.id}>
+                  <tr
+                    key={order.id}
+                    className={order.status === "Completed" ? "table-success" : ""}
+                  >
                     <td>{formatDate(order.date)}</td>
                     <td>{order.id}</td>
                     <td>{order.userEmail}</td>
@@ -180,8 +199,33 @@ const OrderHistory = () => {
                         </div>
                       ))}
                     </td>
-                    <td>₹{order.total.toFixed(2)}</td>
+                    <td>₹{(order.total || 0).toFixed(2)}</td> {/* Fallback for total */}
                     <td>{order.status}</td>
+                    <td>{order.paymentStatus}</td>
+                    <td>
+                      <Dropdown>
+                        <Dropdown.Toggle variant="secondary" size="sm">
+                          Update Status
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            onClick={() => updateOrderStatus(order.date, order.id, "Pending")}
+                          >
+                            Pending
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            onClick={() => updateOrderStatus(order.date, order.id, "Processing")}
+                          >
+                            Processing
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            onClick={() => updateOrderStatus(order.date, order.id, "Completed")}
+                          >
+                            Completed
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    </td>
                   </tr>
                 ))
               )}

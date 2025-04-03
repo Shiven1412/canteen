@@ -1,32 +1,29 @@
-import { useState, useEffect } from 'react';
-import { ref, get } from 'firebase/database';
-import { database } from '../firebase';
-import { useAuth } from '../AuthContext';
+import { useState, useEffect } from "react";
+import { database } from "../firebase"; // Import your Firebase configuration
+import { ref, onValue } from "firebase/database";
+import { useAuth } from "../AuthContext";
 
 const useAdmin = () => {
-  const [isAdmin, setIsAdmin] = useState(false);
   const { currentUser } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true); // Add loading state
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (currentUser) {
-        const adminRef = ref(database, `admins/${currentUser.uid}`);
-        try {
-          const snapshot = await get(adminRef);
-          setIsAdmin(snapshot.exists());
-        } catch (error) {
-          console.error("Error checking admin status:", error);
-          setIsAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-      }
-    };
+    if (currentUser) {
+      const adminRef = ref(database, `admins/${currentUser.uid}`);
+      const unsubscribe = onValue(adminRef, (snapshot) => {
+        setIsAdmin(!!snapshot.val());
+        setLoading(false); // Set loading to false after fetching admin status
+      });
 
-    checkAdminStatus();
+      return () => unsubscribe();
+    } else {
+      setIsAdmin(false);
+      setLoading(false); // Set loading to false if no user is logged in
+    }
   }, [currentUser]);
 
-  return isAdmin;
+  return { isAdmin, loading };
 };
 
 export default useAdmin;

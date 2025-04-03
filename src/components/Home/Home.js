@@ -16,14 +16,18 @@ import {
   Form,
   InputGroup,
   Container,
+  Button,
+  Modal
 } from "react-bootstrap";
 import { useAuth } from "../../AuthContext";
 import jsPDF from "jspdf";
 import useAdmin from '../../hooks/useAdmin';
+import { AuthContext } from "../../AuthContext"
+import useContext from "react"
 
 const Home = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuth(); // This is enough - remove the useContext line
   const { products, updateProductQuantity } = useProducts();
   const [cart, setCart] = useState([]);
   const [showCartModal, setShowCartModal] = useState(false);
@@ -36,6 +40,11 @@ const Home = () => {
   const [logoutError, setLogoutError] = useState("");
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const isAdmin = useAdmin();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [name, setName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+
+  console.log(currentUser); // Use the currentUser from useAuth()
 
   useEffect(() => {
     if (products && products.length > 0) {
@@ -61,16 +70,16 @@ const Home = () => {
     }
   }, [currentUser]);
 
-  const generatePDF = () => {
+  const generatePDF = (orderNumber, totalAmount) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const date = new Date().toLocaleDateString();
     const time = new Date().toLocaleTimeString();
-
+  
     // Header
     doc.setFontSize(22);
     doc.text("CANTEEN RECEIPT", pageWidth / 2, 15, { align: "center" });
-
+  
     doc.setFontSize(12);
     doc.text("Date: " + date, 10, 30);
     doc.text("Time: " + time, 10, 37);
@@ -79,35 +88,36 @@ const Home = () => {
       10,
       44
     );
-
+    doc.text("Order Number: " + orderNumber, 10, 51);
+  
     // Line separator
     doc.setLineWidth(0.5);
-    doc.line(10, 50, pageWidth - 10, 50);
-
+    doc.line(10, 55, pageWidth - 10, 55);
+  
     // Column headers
     doc.setFont("helvetica", "bold");
-    doc.text("Item", 10, 60);
-    doc.text("Qty", 130, 60);
-    doc.text("Price", 150, 60);
-    doc.text("Amount", 170, 60);
-
+    doc.text("Item", 10, 65);
+    doc.text("Qty", 130, 65);
+    doc.text("Price", 150, 65);
+    doc.text("Amount", 170, 65);
+  
     // Items
     doc.setFont("helvetica", "normal");
     cart.forEach((product, index) => {
-      const y = 70 + index * 10;
+      const y = 75 + index * 10;
       doc.text(product.name, 10, y);
       doc.text(product.quantity.toString(), 130, y);
       doc.text(product.price.toFixed(2), 150, y);
       doc.text((product.quantity * product.price).toFixed(2), 170, y);
     });
-
+  
     // Footer
-    const totalY = 80 + cart.length * 10;
+    const totalY = 85 + cart.length * 10;
     doc.line(10, totalY, pageWidth - 10, totalY);
     doc.setFont("helvetica", "bold");
     doc.text("Total Amount:", 130, totalY + 10);
-    doc.text(`$${calculateTotal().toFixed(2)}`, 170, totalY + 10);
-
+    doc.text(`₹${totalAmount.toFixed(2)}`, 170, totalY + 10);
+  
     doc.save(
       `Canteen-Bill-${date.replace(/\//g, "-")}-${time.replace(/\//g, "-")}.pdf`
     );
@@ -165,57 +175,155 @@ const Home = () => {
     );
   };
 
-  const checkout = () => {
-    cart.forEach((product) => {
-      const originalQuantity = originalQuantities[product.id];
-      const updatedQuantity = originalQuantity - product.quantity;
-
-      const productRef = ref(database, `products/${product.id}`);
-      update(productRef, { quantity: updatedQuantity })
-        .then(() => {
-          updateProductQuantity(product.id, updatedQuantity);
-          setOriginalQuantities((prev) => ({
-            ...prev,
-            [product.id]: updatedQuantity,
-          }));
-        })
-        .catch((error) =>
-          console.error("Error updating product quantity:", error)
-        );
-    });
-
-    // Record sales data
-    const checkoutDate = new Date().toISOString().split("T")[0];
-    const saleRef = ref(database, `sales/${checkoutDate}`);
-    const saleId = Date.now().toString();
-    const saleData = {
-      [saleId]: {
-        total: calculateTotal(),
-        items: cart.map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        userId: currentUser?.uid,
-        userEmail: currentUser?.email,
-        timestamp: Date.now(),
-      },
-    };
-    update(saleRef, saleData);
-
-    setCart([]);
-    setShowCartModal(false);
-    setShowCheckoutToast(true);
-    setTimeout(() => setShowCheckoutToast(false), 3000);
-
-    generatePDF();
+  const checkout = async (paymentMethod) => {
+    const totalAmount = calculateTotal(); // Calculate the total amount
+    const orderNumber = Math.floor(1000 + Math.random() * 9000); // Generate a random 4-digit order number
+  
+    if (paymentMethod === "counter") {
+      try {
+        const orderData = {
+          userEmail: currentUser?.email || "Guest",
+          items: cart.map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total: totalAmount,
+          status: "Pending", // Default status
+          paymentStatus: "Unpaid", // Payment status for "Pay at Counter"
+          orderNumber: orderNumber,
+          timestamp: Date.now(),
+        };
+  
+        const orderRef = ref(database, `sales/${new Date().toISOString().split("T")[0]}/${orderNumber}`);
+        await update(orderRef, orderData);
+  
+        // Decrement stock quantities
+        cart.forEach((item) => {
+          const productRef = ref(database, `products/${item.id}`);
+          update(productRef, {
+            quantity: originalQuantities[item.id] - item.quantity,
+          }).catch((error) => {
+            console.error(`Error updating stock for product ${item.id}:`, error);
+          });
+        });
+  
+        // Navigate to the OrderBill component
+        navigate("/order-bill", { state: { orderData } });
+  
+        setCart([]); // Clear the cart
+        setShowCartModal(false);
+      } catch (error) {
+        console.error("Error placing order:", error);
+        alert("Something went wrong. Please try again.");
+      }
+    } else if (paymentMethod === "online") {
+      // Call the initiatePayment function for online payment
+      setShowPaymentModal(true);
+    }
   };
 
-  const filteredProducts = products
-    ? products.filter((product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : [];
+  const initiatePayment = async () => {
+    if (!name.trim()) {
+      alert("Please enter your name.");
+      return;
+    }
+
+    if (!mobileNumber || !/^\d{10}$/.test(mobileNumber)) {
+      alert("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    const totalAmount = calculateTotal(); // Calculate the total amount
+
+    try {
+      // Call the backend to create a Razorpay order
+      const response = await fetch("http://localhost:5001/api/payments/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: totalAmount * 100, // Convert to paise
+          currency: "INR",
+        }),
+      });
+
+      const order = await response.json();
+    
+
+
+      // Razorpay options
+      const options = {
+        key: "rzp_test_SlQkgnZyXFrHYZ", // Replace with your Razorpay Key ID
+        amount: order.amount,
+        currency: order.currency,
+        name: "ACOEC",
+        description: "Test Transaction",
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            const orderData = {
+              userEmail: currentUser?.email || "Guest",
+              items: cart.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+              })),
+              total: totalAmount,
+              status: "Paid", // Payment successful
+              paymentStatus: "Paid",
+              paymentId: response.razorpay_payment_id,
+              orderNumber: Math.floor(1000 + Math.random() * 9000), // Generate a random order number
+              timestamp: Date.now(),
+            };
+        
+            const orderRef = ref(database, `sales/${new Date().toISOString().split("T")[0]}/${orderData.orderNumber}`);
+            await update(orderRef, orderData);
+        
+            alert(`Payment successful! Your order number is ${orderData.orderNumber}`);
+              
+      cart.forEach((item) => {
+        const productRef = ref(database, `products/${item.id}`);
+        update(productRef, {
+          quantity: originalQuantities[item.id] - item.quantity,
+        }).catch((error) => {
+          console.error(`Error updating stock for product ${item.id}:`, error);
+        });
+      });
+            navigate("/order-bill", { state: { orderData } });
+            setCart([]); // Clear the cart
+            setShowPaymentModal(false);
+          } catch (error) {
+            console.error("Error saving order:", error);
+            alert("Something went wrong while saving your order. Please contact support.");
+          }
+        },
+        prefill: {
+          name: name,
+          contact: mobileNumber,
+        },
+        theme: {
+          color: "#3399cc",
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Error initiating payment:", error);
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
+  const filteredProducts = Array.isArray(products) 
+  ? products.filter((product) =>
+      product?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  : [];
+
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
@@ -235,8 +343,7 @@ const Home = () => {
 
   const handleAdminClick = () => {
     if (isAdmin) {
-      setShowAdmin(true);
-      setShowOrderHistory(false);
+      navigate("/admin"); // Navigate to Admin Panel
     }
   };
 
@@ -257,7 +364,7 @@ const Home = () => {
               setShowOrderHistory(false);
             }}
           >
-            Canteen Management
+             ACOE Canteen Management
           </Link>
         </h1>
 
@@ -269,10 +376,7 @@ const Home = () => {
             Home
           </button>
           <button
-            onClick={() => {
-              setShowOrderHistory(true);
-              setShowAdmin(false);
-            }}
+            onClick={() => navigate("/orders")}
             className="btn btn-Link text-decoration-none text-dark fw-bold"
           >
             My Orders
@@ -360,7 +464,7 @@ const Home = () => {
             ) : (
               <div className="text-center mt-5">
                 <h3>Sorry, we're currently not serving any items.</h3>
-                <p className="text-muted">Please check back later or contact <a className="text-decoration-none" href="https://github.com/SauRavRwT/">maintainer</a>!</p>
+                <p className="text-muted">Please check back later or contact <a className="text-decoration-none" href="Shivendratripathi287@gmail.com">maintainer</a>!</p>
               </div>
             )}
             <CartModal
@@ -393,6 +497,38 @@ const Home = () => {
         )}
       </Container>
       <Footer />
+
+      {/* Payment Modal */}
+      <Modal show={showPaymentModal} onHide={() => setShowPaymentModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Enter Your Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3" controlId="formName">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="formMobileNumber">
+              <Form.Label>Mobile Number</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter your mobile number"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+              />
+            </Form.Group>
+            <Button variant="primary" onClick={initiatePayment}>
+              Pay Now
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 };

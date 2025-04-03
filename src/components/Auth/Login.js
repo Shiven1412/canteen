@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
 import { Card, Form, Button, Alert, Container } from "react-bootstrap";
 
 const Login = () => {
@@ -42,12 +43,25 @@ const Login = () => {
   return (
     <Container
       className="d-flex align-items-center justify-content-center"
-      style={{ minHeight: "100vh" }}
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #6a11cb, #2575fc)",
+      }}
     >
       <div className="w-100" style={{ maxWidth: "400px" }}>
-        <Card className="rounded-4">
+        <Card className="rounded-4 shadow-lg">
           <Card.Body>
-            <h2 className="mb-4 fw-bold p-2">Login</h2>
+            <div className="text-center mb-4">
+              <img
+                src="https://play-lh.googleusercontent.com/3uA4VowYRVCylWTkUW0i7h_NQD9DwMcu2YxfIT1ppRW6YYSSbg31DWiKmQaJ8kivfYk=w480-h960-rw" // Replace with your logo path
+                alt="Website Logo"
+                style={{ width: "80px", height: "80px" }}
+              />
+              <h1 className="fw-bold mt-3" style={{ color: "#6a11cb" }}>
+                ACOE Canteen
+              </h1>
+            </div>
+            <h2 className="mb-4 fw-bold text-center">Login</h2>
             {error && <Alert variant="danger">{error}</Alert>}
             <Form onSubmit={handleSubmit}>
               {email && (
@@ -63,14 +77,13 @@ const Login = () => {
               )}
               <Form.Group id="email" className="mb-3">
                 <Form.Label>Email</Form.Label>
-                <div className="d-flex align-items-center">
-                  <Form.Control
-                    type="email"
-                    value={email}
-                    onChange={handleEmailChange}
-                    required
-                  />
-                </div>
+                <Form.Control
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  required
+                  className="rounded-3"
+                />
               </Form.Group>
               <Form.Group id="password" className="mb-3">
                 <Form.Label>Password</Form.Label>
@@ -79,21 +92,26 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="rounded-3"
                 />
               </Form.Group>
               <Button
                 disabled={loading}
                 className="w-100 rounded-4"
                 type="submit"
+                style={{
+                  background: "linear-gradient(135deg, #6a11cb, #2575fc)",
+                  border: "none",
+                }}
               >
                 Log In
               </Button>
             </Form>
           </Card.Body>
         </Card>
-        <div className="w-100 text-center mt-2">
+        <div className="w-100 text-center mt-3 text-white">
           Need an account?{" "}
-          <Link to="/signup" className="text-decoration-none">
+          <Link to="/signup" className="text-decoration-none fw-bold text-white">
             Sign Up
           </Link>
         </div>

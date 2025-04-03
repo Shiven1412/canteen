@@ -1,6 +1,6 @@
 import React from "react";
 
-const Cart = ({ cart, removeFromCart, clearCart, calculateTotal }) => {
+const Cart = ({ cart, removeFromCart, clearCart, calculateTotal, initiatePayment }) => {
   return (
     <div className="card mt-4">
       <div className="card-header">
@@ -30,6 +30,12 @@ const Cart = ({ cart, removeFromCart, clearCart, calculateTotal }) => {
           <h4>Total: ₹{calculateTotal()}</h4>
           <button className="btn btn-warning btn-sm" onClick={clearCart}>
             Clear Cart
+          </button>
+          <button
+            className="btn btn-primary btn-sm ms-3"
+            onClick={initiatePayment} // Trigger payment process
+          >
+            Checkout
           </button>
         </div>
       </div>
